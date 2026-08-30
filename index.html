@@ -63,7 +63,7 @@ input:focus,select:focus{outline:none;border-color:var(--red)}
 .tt .net td:last-child{color:var(--red)}
 .actions{display:flex;gap:9px;margin-top:6px;flex-wrap:wrap}
 button.primary{background:var(--red);color:#fff;border:0;border-radius:9px;padding:12px 16px;font-size:15px;font-weight:600;flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
-button.ghost{background:#fff;border:1px solid #cfcfcf;border-radius:9px;padding:12px 15px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.ghost{background:#fff;border:1px solid #cfcfcf;border-radius:9px;padding:12px 15px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .filelbl{margin:0;color:var(--ink);cursor:pointer}
 .list{width:100%;border-collapse:collapse;font-size:13.5px}
 .list th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;padding:6px 6px;border-bottom:1px solid var(--line)}
@@ -169,8 +169,8 @@ input:focus,select:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--red-
 .tt .net td{font-size:18px}
 button.primary{background:linear-gradient(120deg,var(--red),var(--red-d));border-radius:11px;padding:13px 16px;box-shadow:0 3px 12px rgba(179,20,27,.30)}
 button.primary:active{transform:translateY(1px)}
-button.ghost{border:1px solid #d7dbe2;border-radius:11px}
-button.ghost:active{background:#f5f6f8}
+.ghost{border:1px solid #d7dbe2;border-radius:11px}
+.ghost:active{background:#f5f6f8}
 .list th{font-size:11px;letter-spacing:.4px;text-transform:uppercase;padding:8px 8px;border-bottom:1px solid var(--line)}
 .list td{padding:10px 8px;border-bottom:1px solid #eef0f3}
 .list tr:hover td{background:#fafbfc}
@@ -193,8 +193,22 @@ input,select,textarea{min-width:0;max-width:100%}
 .grid8 input{min-width:0;width:100%}
 .row2{min-width:0}.row2>*{min-width:0}
 .invq{max-width:100%}
-table.list{width:100%;table-layout:fixed}
+table.list{width:100%}
 table.list td,table.list th{word-break:break-word}
+@media (max-width:520px){
+  table.list{display:block}
+  table.list th,table.list td{display:block;width:auto}
+  table.list tr{display:block;width:100%}
+  table.list tr.lhead{display:none}
+  table.list tr{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;box-sizing:border-box}
+  table.list td{border:none;padding:3px 0}
+  table.list td[data-label]{display:flex;justify-content:space-between;gap:10px;text-align:right}
+  table.list td[data-label]::before{content:attr(data-label);color:var(--muted);font-size:11px;text-align:left}
+  table.list td:first-child{font-weight:600;font-size:14px;padding-bottom:6px}
+  table.list td:first-child .sub{font-weight:400}
+  table.list td:last-child{display:flex;justify-content:flex-end;gap:16px;padding-top:8px;margin-top:4px;border-top:1px solid #f0f0f0}
+  table.list.stocktbl td:last-child{display:block;padding-top:6px;margin-top:0;border-top:none}
+}
 @media (max-width:520px){
   #view{padding:12px 10px 84px}
   .card{padding:12px}
@@ -555,8 +569,8 @@ function productsView(){
   const mfName=id=>{const m=mfs.find(x=>x.id===id);return m?m.name:''};
   return `<div class="secttl"><span>Product list</span><button class="mini" onclick="editProduct()"><i class="ti ti-plus"></i> Add product</button></div>
   <div class="card" style="overflow-x:auto"><table class="list">
-    <tr><th>Name</th><th>Type</th><th>Packing</th><th>HSN</th><th class="r">PTR</th><th class="r">PTS</th><th class="r">MRP</th><th>Manufacturer</th><th></th></tr>
-    ${ps.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.type||'')}</td><td>${esc(p.packing)}</td><td>${esc(p.hsn)}</td><td class="r">${p.ptr||''}</td><td class="r">${p.pts||''}</td><td class="r">${p.mrp||''}</td><td>${esc(mfName(p.mfrId))}</td>
+    <tr class="lhead"><th>Name</th><th>Type</th><th>Packing</th><th>HSN</th><th class="r">PTR</th><th class="r">PTS</th><th class="r">MRP</th><th>Manufacturer</th><th></th></tr>
+    ${ps.map(p=>`<tr><td>${esc(p.name)}</td><td data-label="Type">${esc(p.type||'')}</td><td data-label="Packing">${esc(p.packing)}</td><td data-label="HSN">${esc(p.hsn)}</td><td class="r" data-label="PTR">${p.ptr||''}</td><td class="r" data-label="PTS">${p.pts||''}</td><td class="r" data-label="MRP">${p.mrp||''}</td><td data-label="Mfr">${esc(mfName(p.mfrId))}</td>
       <td class="r"><button class="icon" onclick="editProduct('${p.id}')">Edit</button><button class="icon danger" onclick="delRec(K.P,'${p.id}')">Delete</button></td></tr>`).join('')}
   </table></div>`;
 }
@@ -609,8 +623,8 @@ function partiesView(){
   const ts=g(K.T,[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
   return `<div class="secttl"><span>Buyers</span><button class="mini" onclick="editParty()"><i class="ti ti-plus"></i> Add buyer</button></div>
   <div class="card"><table class="list">
-    <tr><th>Name</th><th>Abbr</th><th>Type</th><th>GSTIN</th><th></th></tr>
-    ${ts.map(p=>`<tr><td>${esc(p.name)}<div class="sub">${esc(p.addr||'')}</div></td><td><b>${esc(p.abbr||suggestAbbr(p.name))}</b></td><td>${esc(p.type||'Distributor')}</td><td>${esc(p.gstin||'')}</td>
+    <tr class="lhead"><th>Name</th><th>Abbr</th><th>Type</th><th>GSTIN</th><th></th></tr>
+    ${ts.map(p=>`<tr><td>${esc(p.name)}<div class="sub">${esc(p.addr||'')}</div></td><td data-label="Abbr"><b>${esc(p.abbr||suggestAbbr(p.name))}</b></td><td data-label="Type">${esc(p.type||'Distributor')}</td><td data-label="GSTIN">${esc(p.gstin||'')}</td>
       <td class="r"><button class="icon" onclick="editParty('${p.id}')">Edit</button><button class="icon danger" onclick="delRec(K.T,'${p.id}')">Delete</button></td></tr>`).join('')}
   </table></div>`;
 }
@@ -655,8 +669,8 @@ function manufacturersView(){
   const ms=g(K.MF,[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
   return `<div class="secttl"><span>Manufacturers</span><button class="mini" onclick="editManufacturer()"><i class="ti ti-plus"></i> Add manufacturer</button></div>
   <div class="card"><table class="list">
-    <tr><th>Name</th><th>GSTIN</th><th></th></tr>
-    ${ms.map(m=>`<tr><td>${esc(m.name)}<div class="sub">${esc(m.addr||'')}</div></td><td>${esc(m.gstin||'')}</td>
+    <tr class="lhead"><th>Name</th><th>GSTIN</th><th></th></tr>
+    ${ms.map(m=>`<tr><td>${esc(m.name)}<div class="sub">${esc(m.addr||'')}</div></td><td data-label="GSTIN">${esc(m.gstin||'')}</td>
       <td class="r"><button class="icon" onclick="editManufacturer('${m.id}')">Edit</button><button class="icon danger" onclick="delRec(K.MF,'${m.id}')">Delete</button></td></tr>`).join('')}
   </table></div>`;
 }
@@ -687,8 +701,8 @@ function savedView(){
   const iv=g(K.I,[]).slice().reverse();
   if(!iv.length)return`<div class="card empty">No saved bills yet. Create one in the New bill tab.</div>`;
   return `<div class="secttl"><span>Saved bills</span></div><div class="card"><table class="list">
-    <tr><th>Invoice</th><th>Date</th><th>Buyer</th><th class="r">Net</th><th></th></tr>
-    ${iv.map(b=>`<tr><td>${esc(b.invoiceNo)}</td><td>${fmtDate(b.date)}</td><td>${esc(b.party.name)}</td><td class="r">${money(b.totals.net)}</td>
+    <tr class="lhead"><th>Invoice</th><th>Date</th><th>Buyer</th><th class="r">Net</th><th></th></tr>
+    ${iv.map(b=>`<tr><td>${esc(b.invoiceNo)}</td><td data-label="Date">${fmtDate(b.date)}</td><td data-label="Buyer">${esc(b.party.name)}</td><td class="r" data-label="Net">${money(b.totals.net)}</td>
       <td class="r"><button class="icon" onclick="viewSaved('${b.invoiceNo}')">View</button><button class="icon danger" onclick="delSaved('${b.invoiceNo}')">Delete</button></td></tr>`).join('')}
   </table></div>`;
 }
@@ -707,10 +721,10 @@ function purchaseView(){
   if(!ps.length)return `<div class="secttl"><span>Purchase details — Inventory</span></div><div class="card empty">Add products first.</div>`;
   return `<div class="secttl"><span>Purchase details — Inventory</span></div>
   <p class="muted" style="margin:0 0 8px 2px">Enter how many of each product you currently have in stock.</p>
-  <div class="card"><table class="list">
-    <tr><th>S.No</th><th>Product</th><th>In-stock Qty</th></tr>
+  <div class="card"><table class="list stocktbl">
+    <tr class="lhead"><th>Product</th><th>In-stock Qty</th></tr>
     ${ps.map((p,i)=>{const st=Number(p.stock)||0;const cls=stockClass(st,st);
-      return `<tr><td>${i+1}</td><td>${esc(p.name)}<div class="sub">${esc(p.packing||'')}</div></td>
+      return `<tr><td>${i+1}. ${esc(p.name)}<div class="sub">${esc(p.packing||'')}</div></td>
       <td><input id="inv-${p.id}" class="invq ${cls}" type="number" min="0" value="${st}" oninput="setStock('${p.id}',this.value)"></td></tr>`;}).join('')}
   </table></div>`;
 }
