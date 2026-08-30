@@ -430,7 +430,7 @@ function newBill(){
   bill={invoiceNo:nextInvoice(set.lastInvoice),date:todayISO(),partyId:'',cd:2,lines:[]};
   addLine();
 }
-function addLine(){bill.lines.push({productId:'',name:'',packing:'',hsn:'',tax:5,mrp:0,bno:'',mfg:'',exp:'',qty:0,free:0,ptr:0,pts:0})}
+function addLine(){bill.lines.unshift({productId:'',name:'',packing:'',hsn:'',tax:5,mrp:0,bno:'',mfg:'',exp:'',qty:0,free:0,ptr:0,pts:0})}
 function isRetailer(){const p=g(K.T,[]).find(x=>x.id===bill.partyId);return !!(p&&String(p.type).toLowerCase()==='retailer')}
 function billRate(l){return isRetailer()?(Number(l.ptr)||0):(Number(l.pts)||0)}
 function calc(){
@@ -808,7 +808,7 @@ function doSave(print){
   const parties=g(K.T,[]);const p=parties.find(x=>x.id===bill.partyId);
   const rec=JSON.parse(JSON.stringify(bill));
   rec.id=rec.id||uid();
-  rec.lines=rec.lines.filter(l=>l.productId||l.name);
+  rec.lines=rec.lines.filter(l=>l.productId||l.name).slice().reverse();
   rec.party={name:p.name,type:p.type||'Distributor',addr:p.addr,gstin:p.gstin,pan:p.pan,dl:p.dl,phone:p.phone};
   rec.totals=calc();
   const iv=g(K.I,[]);iv.push(rec);s(K.I,iv);
@@ -826,7 +826,7 @@ function doSave(print){
 function viewBill(){
   const parties=g(K.T,[]);const p=parties.find(x=>x.id===bill.partyId);
   if(!p){alert('Select a buyer first');return}
-  const lines=bill.lines.filter(l=>(l.productId||l.name)&&(+l.qty>0));
+  const lines=bill.lines.filter(l=>(l.productId||l.name)&&(+l.qty>0)).slice().reverse();
   if(!lines.length){alert('Add at least one product with a quantity');return}
   const rec=JSON.parse(JSON.stringify(bill));
   rec.lines=lines;
