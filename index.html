@@ -252,6 +252,24 @@ const g=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){retur
 const s=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
+/* ---------- cloud API (Cloudflare D1 via Pages Functions) ---------- */
+const API='/api';
+async function apiGet(path){const r=await fetch(API+path);if(!r.ok)throw new Error('GET '+path+' failed');return r.json();}
+async function apiSend(method,path,body){const r=await fetch(API+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error(method+' '+path+' failed');return r.json();}
+function cloudPush(fn){fn().catch(e=>console.warn('Cloud sync skipped (offline or error):',e.message));}
+function apiTable(key){return key===K.P?'products':key===K.T?'parties':key===K.MF?'manufacturers':null;}
+async function cloudSync(){
+  try{
+    const [pr,pt,mf,iv]=await Promise.all([apiGet('/products'),apiGet('/parties'),apiGet('/manufacturers'),apiGet('/invoices')]);
+    if(pr&&pr.products)s(K.P,pr.products);
+    if(pt&&pt.parties)s(K.T,pt.parties);
+    if(mf&&mf.manufacturers)s(K.MF,mf.manufacturers);
+    if(iv&&iv.invoices)s(K.I,iv.invoices);
+    if(tab!=='bill')render(); // avoid disrupting an in-progress bill on the New Bill screen
+  }catch(e){console.warn('Cloud sync failed, using local data:',e.message);}
+}
+async function manualSync(){await cloudSync();render();alert('Synced with cloud.');}
+
 /* ---------- seed from reference bills ---------- */
 function demoData(){
   const MF=[{"id": "mf-ciron", "name": "Ciron Pharma", "gstin": "27AAACC1234A1Z5", "addr": "Mumbai, Maharashtra"}, {"id": "mf-athens", "name": "Athens Life Sciences", "gstin": "36AAECA5678B1Z2", "addr": "Hyderabad, Telangana"}, {"id": "mf-himalaya", "name": "Himalaya Wellness", "gstin": "29AAACH9012C1Z8", "addr": "Bengaluru, Karnataka"}, {"id": "mf-mmg", "name": "MMG Health Care", "gstin": "24AAACM3456D1Z4", "addr": "Vadodara, Gujarat"}, {"id": "mf-lvlife", "name": "L V Life Sciences", "gstin": "36AAACL7890E1Z1", "addr": "Hyderabad, Telangana"}, {"id": "mf-stepan", "name": "Stepan Lifesciences", "gstin": "23AAACS2345F1Z7", "addr": "Indore, Madhya Pradesh"}];
@@ -581,7 +599,9 @@ function saveProduct(id){
     mfrId:(i>=0?ps[i].mfrId:'')||'',bno:v('mp-bno').trim(),mfd:v('mp-mfd').trim(),exp:v('mp-exp').trim()};
   if(!rec.name){alert('Name is required');return}
   if(i>=0)ps[i]=rec;else ps.push(rec);
-  s(K.P,ps);closeModal();render();
+  s(K.P,ps);
+  cloudPush(()=>i>=0?apiSend('PUT','/products/'+rec.id,rec):apiSend('POST','/products',rec));
+  closeModal();render();
 }
 
 /* ---------- PARTIES view ---------- */
@@ -619,9 +639,16 @@ function saveParty(id){
   if(!rec.name){alert('Name is required');return}
   const ts=g(K.T,[]);const i=ts.findIndex(x=>x.id===id);
   if(i>=0)ts[i]=rec;else ts.push(rec);
-  s(K.T,ts);closeModal();render();
+  s(K.T,ts);
+  cloudPush(()=>i>=0?apiSend('PUT','/parties/'+rec.id,rec):apiSend('POST','/parties',rec));
+  closeModal();render();
 }
-function delRec(key,id){if(!confirm('Delete this?'))return;s(key,g(key,[]).filter(x=>x.id!==id));render()}
+function delRec(key,id){
+  if(!confirm('Delete this?'))return;
+  s(key,g(key,[]).filter(x=>x.id!==id));
+  const t=apiTable(key);if(t)cloudPush(()=>apiSend('DELETE','/'+t+'/'+id));
+  render();
+}
 
 /* ---------- MANUFACTURERS view ---------- */
 function manufacturersView(){
@@ -650,7 +677,9 @@ function saveManufacturer(id){
   if(!rec.name){alert('Name is required');return}
   const ms=g(K.MF,[]);const i=ms.findIndex(x=>x.id===id);
   if(i>=0)ms[i]=rec;else ms.push(rec);
-  s(K.MF,ms);closeModal();render();
+  s(K.MF,ms);
+  cloudPush(()=>i>=0?apiSend('PUT','/manufacturers/'+rec.id,rec):apiSend('POST','/manufacturers',rec));
+  closeModal();render();
 }
 
 /* ---------- SAVED view ---------- */
@@ -663,7 +692,14 @@ function savedView(){
       <td class="r"><button class="icon" onclick="viewSaved('${b.invoiceNo}')">View</button><button class="icon danger" onclick="delSaved('${b.invoiceNo}')">Delete</button></td></tr>`).join('')}
   </table></div>`;
 }
-function delSaved(no){if(!confirm('Delete bill '+no+'?'))return;s(K.I,g(K.I,[]).filter(b=>b.invoiceNo!==no));render()}
+function delSaved(no){
+  if(!confirm('Delete bill '+no+'?'))return;
+  const all=g(K.I,[]);
+  const removed=all.filter(b=>b.invoiceNo===no);
+  s(K.I,all.filter(b=>b.invoiceNo!==no));
+  removed.forEach(b=>{if(b.id)cloudPush(()=>apiSend('DELETE','/invoices/'+b.id));});
+  render();
+}
 function viewSaved(no){const b=g(K.I,[]).find(x=>x.invoiceNo===no);if(b)openPreview(b)}
 
 function purchaseView(){
@@ -682,6 +718,7 @@ function stockClass(rem,stock){return (Number(stock)||0)<=0||rem<0 ? 'inv-red' :
 function setStock(id,v){
   const n=Math.max(0,Number(v)||0);const ps=g(K.P,[]);const i=ps.findIndex(x=>x.id===id);
   if(i>=0){ps[i].stock=n;s(K.P,ps);}
+  cloudPush(()=>apiSend('POST','/products/'+id+'/stock',{stock:n}));
   const el=document.getElementById('inv-'+id);
   if(el){el.classList.remove('inv-red','inv-yellow','inv-green');el.classList.add(stockClass(n,n));}
 }
@@ -695,7 +732,12 @@ function stockInfo(l){
 
 /* ---------- BACKUP view ---------- */
 function backupView(){
-  return `<div class="secttl"><span>Backup &amp; restore</span></div>
+  return `<div class="secttl"><span>Cloud sync</span></div>
+  <div class="card">
+    <p class="muted">Pull the latest products, buyers, manufacturers and bills from the cloud database.</p>
+    <div class="actions"><button class="ghost" onclick="manualSync()"><i class="ti ti-refresh"></i> Sync now</button></div>
+  </div>
+  <div class="secttl"><span>Backup &amp; restore</span></div>
   <div class="card">
     <p class="muted">Your data lives only on this device. Download a backup regularly, and keep the file safe. Restoring replaces all current data.</p>
     <div class="actions">
@@ -707,7 +749,8 @@ function backupView(){
     <div class="actions"><button class="ghost" onclick="loadDemo()"><i class="ti ti-database"></i> Load sample data</button><button class="ghost danger" onclick="deleteDemo()"><i class="ti ti-trash"></i> Delete sample data</button></div>
   </div>`;
 }
-function doBackup(){
+async function doBackup(){
+  await cloudSync().catch(()=>{}); // best effort — if offline, backs up whatever is local
   const data={products:g(K.P,[]),parties:g(K.T,[]),manufacturers:g(K.MF,[]),invoices:g(K.I,[]),settings:g(K.S,{})};
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
@@ -749,6 +792,7 @@ function doSave(print){
   if(errs.length){alert('Please fix these first:\n\n• '+errs.join('\n• '));return}
   const parties=g(K.T,[]);const p=parties.find(x=>x.id===bill.partyId);
   const rec=JSON.parse(JSON.stringify(bill));
+  rec.id=rec.id||uid();
   rec.lines=rec.lines.filter(l=>l.productId||l.name);
   rec.party={name:p.name,type:p.type||'Distributor',addr:p.addr,gstin:p.gstin,pan:p.pan,dl:p.dl,phone:p.phone};
   rec.totals=calc();
@@ -757,6 +801,7 @@ function doSave(print){
   const ps=g(K.P,[]);
   rec.lines.forEach(l=>{const i=ps.findIndex(x=>x.id===l.productId);if(i>=0)ps[i].stock=Math.max(0,(Number(ps[i].stock)||0)-((Number(l.qty)||0)+(Number(l.free)||0)));});
   s(K.P,ps);
+  cloudPush(()=>apiSend('POST','/invoices',rec));
   newBill();tab='bill';render();
   if(print)openPreview(rec,true);
   else alert('Saved bill '+rec.invoiceNo);
@@ -923,6 +968,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')endTour()});
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
 /* ---------- boot ---------- */
-seed();migrateManufacturers();newBill();render();maybeShowTutorialOnBoot();
+seed();migrateManufacturers();newBill();render();maybeShowTutorialOnBoot();cloudSync();
 </script>
 </body></html>
