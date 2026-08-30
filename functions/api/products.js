@@ -1,12 +1,12 @@
 import { json, err, newId, num, productFromRow } from "./_utils.js";
 
-// GET /api/products -> list all products, with LIVE stock (opening + moves)
+// GET /api/products -> list all products, newest first, with LIVE stock (opening + moves)
 export async function onRequestGet({ env }) {
   const { results } = await env.DB.prepare(
     `SELECT p.*,
             p.start_stock + COALESCE((SELECT SUM(m.change) FROM stock_moves m WHERE m.product_id = p.id), 0) AS live_stock
      FROM products p
-     ORDER BY p.name COLLATE NOCASE`
+     ORDER BY p.updated_at DESC`
   ).all();
   const products = results.map((r) => {
     const p = productFromRow(r);
