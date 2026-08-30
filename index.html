@@ -565,7 +565,7 @@ function recalc(){
 /* ---------- PRODUCTS view ---------- */
 const PRODUCT_TYPES=['Tablet','Capsule','Syrup','Injection','Suspension','Ointment','Cream','Gel','Lotion','Drops','Powder','Other'];
 function productsView(){
-  const ps=g(K.P,[]).slice().sort((a,b)=>a.name.localeCompare(b.name));const mfs=g(K.MF,[]);
+  const ps=g(K.P,[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));const mfs=g(K.MF,[]);
   const mfName=id=>{const m=mfs.find(x=>x.id===id);return m?m.name:''};
   return `<div class="secttl"><span>Product list</span><button class="mini" onclick="editProduct()"><i class="ti ti-plus"></i> Add product</button></div>
   <div class="card" style="overflow-x:auto"><table class="list">
@@ -610,9 +610,10 @@ function saveProduct(id){
   const ps=g(K.P,[]);const i=ps.findIndex(x=>x.id===id);
   const rec={id:id||uid(),name:v('mp-name').trim(),type,packing:v('mp-pack').trim(),hsn:v('mp-hsn').trim(),
     ptr:+v('mp-ptr')||0,pts:+v('mp-pts')||0,mrp:+v('mp-mrp')||0,tax:+v('mp-tax')||5,
-    mfrId:(i>=0?ps[i].mfrId:'')||'',bno:v('mp-bno').trim(),mfd:v('mp-mfd').trim(),exp:v('mp-exp').trim()};
+    mfrId:(i>=0?ps[i].mfrId:'')||'',bno:v('mp-bno').trim(),mfd:v('mp-mfd').trim(),exp:v('mp-exp').trim(),
+    createdAt:(i>=0?ps[i].createdAt:'')||Date.now()};
   if(!rec.name){alert('Name is required');return}
-  if(i>=0)ps[i]=rec;else ps.push(rec);
+  if(i>=0)ps[i]=rec;else ps.unshift(rec);
   s(K.P,ps);
   cloudPush(()=>i>=0?apiSend('PUT','/products/'+rec.id,rec):apiSend('POST','/products',rec));
   closeModal();render();
