@@ -503,7 +503,7 @@ function billView(){
   </div>`;
 }
 function lineCard(l,i){
-  const prods=g(K.P,[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const prods=g(K.P,[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const opts=prods.map(x=>`<option value="${x.id}" ${x.id===l.productId?'selected':''}>${esc(x.name)} — ${esc(x.packing)}</option>`).join('');
   return `<div class="card line">
     <div class="lhead"><span class="lidx">Line ${i+1}</span>
